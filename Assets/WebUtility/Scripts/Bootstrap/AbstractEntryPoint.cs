@@ -55,6 +55,8 @@ namespace WebUtility
                     var genericMethod = registerMethod.MakeGenericMethod(windowType);
                     genericMethod.Invoke(_container, new object[] { window, null });
                 }
+                
+                window.Init();
             
                 _container.InjectDependencies(window);
             }
