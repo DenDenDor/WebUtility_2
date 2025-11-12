@@ -13,7 +13,6 @@ public class LevelWindow : AbstractWindowUi
     {
         _button.onClick.AddListener(() =>
         {
-            Debug.LogError("CLICKED!!!");
             Clicked?.Invoke();
         });
     }

@@ -2,114 +2,112 @@ using UnityEngine;
 using UnityEditor;
 using System.IO;
 
-[InitializeOnLoad]
-public class ScriptToObjectDragger
+namespace WebUtility
 {
-    static ScriptToObjectDragger()
+    [InitializeOnLoad]
+    public class ScriptToObjectDragger
     {
-        // Регистрируем обработчики для обоих окон
-        EditorApplication.hierarchyWindowItemOnGUI += HandleHierarchyWindowItemOnGUI;
-        SceneView.duringSceneGui += HandleSceneViewDrag;
-    }
-
-    private static void HandleHierarchyWindowItemOnGUI(int instanceID, Rect selectionRect)
-    {
-        ProcessDragEvent(selectionRect);
-    }
-
-    private static void HandleSceneViewDrag(SceneView sceneView)
-    {
-        // Обрабатываем перетаскивание в пустую область сцены
-        if (Event.current.type == EventType.DragExited)
+        static ScriptToObjectDragger()
         {
-            ProcessDragEvent(new Rect(0, 0, Screen.width, Screen.height), true);
+            EditorApplication.hierarchyWindowItemOnGUI += HandleHierarchyWindowItemOnGUI;
+            SceneView.duringSceneGui += HandleSceneViewDrag;
         }
-    }
 
-    private static void ProcessDragEvent(Rect dropArea, bool isSceneView = false)
-    {
-        if (Event.current.type == EventType.DragUpdated || Event.current.type == EventType.DragPerform)
+        private static void HandleHierarchyWindowItemOnGUI(int instanceID, Rect selectionRect)
         {
-            // Проверяем, находится ли курсор в области сброса
-            if (dropArea.Contains(Event.current.mousePosition))
+            GameObject targetObject = EditorUtility.InstanceIDToObject(instanceID) as GameObject;
+            ProcessDragEvent(selectionRect, targetObject, false);
+        }
+
+        private static void HandleSceneViewDrag(SceneView sceneView)
+        {
+            if (Event.current.type == EventType.DragUpdated || Event.current.type == EventType.DragPerform)
             {
-                // Проверяем, есть ли среди перетаскиваемых объектов скрипты
-                bool hasScripts = false;
-                foreach (var obj in DragAndDrop.objectReferences)
-                {
-                    if (obj is MonoScript)
-                    {
-                        hasScripts = true;
-                        break;
-                    }
-                }
+                ProcessDragEvent(new Rect(0, 0, Screen.width, Screen.height), null, true);
+            }
+        }
 
-                if (hasScripts)
+        private static void ProcessDragEvent(Rect dropArea, GameObject targetObject = null, bool isSceneView = false)
+        {
+            if (Event.current.type == EventType.DragUpdated || Event.current.type == EventType.DragPerform)
+            {
+                if (dropArea.Contains(Event.current.mousePosition))
                 {
-                    DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
-
-                    if (Event.current.type == EventType.DragPerform)
+                    bool hasScripts = false;
+                    foreach (var obj in DragAndDrop.objectReferences)
                     {
-                        // Создаем объекты для каждого скрипта
-                        foreach (var obj in DragAndDrop.objectReferences)
+                        if (obj is MonoScript)
                         {
-                            if (obj is MonoScript script)
-                            {
-                                CreateObjectFromScript(script, isSceneView);
-                            }
+                            hasScripts = true;
+                            break;
                         }
+                    }
 
-                        DragAndDrop.AcceptDrag();
-                        Event.current.Use();
+                    if (hasScripts)
+                    {
+                        DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+
+                        if (Event.current.type == EventType.DragPerform)
+                        {
+                            foreach (var obj in DragAndDrop.objectReferences)
+                            {
+                                if (obj is MonoScript script)
+                                {
+                                    CreateObjectFromScript(script, targetObject, isSceneView);
+                                }
+                            }
+
+                            DragAndDrop.AcceptDrag();
+                            Event.current.Use();
+                        }
                     }
                 }
             }
         }
-    }
 
-    private static void CreateObjectFromScript(MonoScript script, bool positionInSceneView = false)
-    {
-        string scriptName = Path.GetFileNameWithoutExtension(script.name);
-        GameObject newObject = new GameObject(scriptName);
-
-        // Позиционируем объект в сцене, если перетаскивали в SceneView
-        if (positionInSceneView)
+        private static void CreateObjectFromScript(MonoScript script, GameObject targetObject = null,
+            bool positionInSceneView = false)
         {
-            // Получаем позицию под курсором в мировых координатах
-            Vector3 dropPosition = GetWorldDropPosition();
-            newObject.transform.position = dropPosition;
+            string scriptName = Path.GetFileNameWithoutExtension(script.name);
+            GameObject newObject = new GameObject(scriptName);
+
+            if (targetObject != null)
+            {
+                newObject.transform.SetParent(targetObject.transform, false);
+                newObject.transform.localPosition = Vector3.zero;
+                newObject.transform.localRotation = Quaternion.identity;
+                newObject.transform.localScale = Vector3.one;
+            }
+            else if (positionInSceneView)
+            {
+                Vector3 dropPosition = GetWorldDropPosition();
+                newObject.transform.position = dropPosition;
+            }
+
+            System.Type scriptType = script.GetClass();
+            if (scriptType != null && scriptType.IsSubclassOf(typeof(MonoBehaviour)))
+            {
+                newObject.AddComponent(scriptType);
+            }
+
+            Selection.activeGameObject = newObject;
+            Undo.RegisterCreatedObjectUndo(newObject, "Create " + scriptName);
         }
 
-        System.Type scriptType = script.GetClass();
-        if (scriptType != null && scriptType.IsSubclassOf(typeof(MonoBehaviour)))
+        private static Vector3 GetWorldDropPosition()
         {
-            newObject.AddComponent(scriptType);
+            SceneView sceneView = SceneView.lastActiveSceneView;
+            if (sceneView == null) return Vector3.zero;
+
+            Vector2 mousePosition = Event.current.mousePosition;
+            Ray ray = HandleUtility.GUIPointToWorldRay(mousePosition);
+
+            if (Physics.Raycast(ray, out RaycastHit hit))
+            {
+                return hit.point;
+            }
+
+            return ray.GetPoint(10);
         }
-
-        Selection.activeGameObject = newObject;
-        Undo.RegisterCreatedObjectUndo(newObject, "Create " + scriptName);
-    }
-
-    private static Vector3 GetWorldDropPosition()
-    {
-        // Получаем текущее представление сцены
-        SceneView sceneView = SceneView.lastActiveSceneView;
-        if (sceneView == null) return Vector3.zero;
-
-        // Преобразуем позицию курсора в мировые координаты
-        Vector2 mousePosition = Event.current.mousePosition;
-        Camera sceneCamera = sceneView.camera;
-
-        // Создаем луч из камеры
-        Ray ray = HandleUtility.GUIPointToWorldRay(mousePosition);
-        
-        // Если луч попадает на какой-то объект, используем точку пересечения
-        if (Physics.Raycast(ray, out RaycastHit hit))
-        {
-            return hit.point;
-        }
-        
-        // Иначе размещаем объект на расстоянии 10 единиц от камеры
-        return ray.GetPoint(10);
     }
 }

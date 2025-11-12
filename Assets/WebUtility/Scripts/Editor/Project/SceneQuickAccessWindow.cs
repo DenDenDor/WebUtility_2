@@ -2,40 +2,41 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-public class SceneQuickAccessWindow : EditorWindow
+namespace WebUtility
 {
-    [MenuItem("Tools/Scene Quick Access", priority = -100)]
-    public static void ShowWindow()
+    public class SceneQuickAccessWindow : EditorWindow
     {
-        GetWindow<SceneQuickAccessWindow>("Scene Quick Access");
-    }
-
-    private void OnGUI()
-    {
-        GUILayout.Label("Scenes In Build", EditorStyles.boldLabel);
-
-        // Получаем список сцен из Build Settings
-        EditorBuildSettingsScene[] scenes = EditorBuildSettings.scenes;
-
-        if (scenes.Length == 0)
+        [MenuItem("Tools/Scene Quick Access", priority = -100)]
+        public static void ShowWindow()
         {
-            EditorGUILayout.HelpBox("No scenes in Build Settings!", MessageType.Warning);
-            if (GUILayout.Button("Open Build Settings"))
-            {
-                EditorWindow.GetWindow(System.Type.GetType("UnityEditor.BuildPlayerWindow,UnityEditor"));
-            }
-            return;
+            GetWindow<SceneQuickAccessWindow>("Scene Quick Access");
         }
 
-        // Кнопки для каждой сцены
-        foreach (var scene in scenes)
+        private void OnGUI()
         {
-            if (GUILayout.Button(System.IO.Path.GetFileNameWithoutExtension(scene.path)))
+            GUILayout.Label("Scenes In Build", EditorStyles.boldLabel);
+
+            EditorBuildSettingsScene[] scenes = EditorBuildSettings.scenes;
+
+            if (scenes.Length == 0)
             {
-                // Проверяем, нужно ли сохранять текущую сцену
-                if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                EditorGUILayout.HelpBox("No scenes in Build Settings!", MessageType.Warning);
+                if (GUILayout.Button("Open Build Settings"))
                 {
-                    EditorSceneManager.OpenScene(scene.path);
+                    EditorWindow.GetWindow(System.Type.GetType("UnityEditor.BuildPlayerWindow,UnityEditor"));
+                }
+
+                return;
+            }
+
+            foreach (var scene in scenes)
+            {
+                if (GUILayout.Button(System.IO.Path.GetFileNameWithoutExtension(scene.path)))
+                {
+                    if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                    {
+                        EditorSceneManager.OpenScene(scene.path);
+                    }
                 }
             }
         }
