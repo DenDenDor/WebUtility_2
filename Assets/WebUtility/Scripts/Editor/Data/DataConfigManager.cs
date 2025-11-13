@@ -26,10 +26,10 @@ namespace WebUtility.Editor.Data
         private const string ConfigsFolderPath = "Assets/WebUtility/Configs";
         
         /// <summary>
-        /// Получить данные конфига по GUID
+        /// Получить данные конфига по GUID или имени (TypeName_ConfigName)
         /// </summary>
         /// <typeparam name="T">Тип данных конфига (должен наследоваться от AbstractData)</typeparam>
-        /// <param name="guid">GUID конфига</param>
+        /// <param name="guid">GUID конфига или ключ в формате TypeName_ConfigName</param>
         /// <returns>Экземпляр конфига или null, если не найден</returns>
         public static T GetData<T>(string guid) where T : AbstractData
         {
@@ -39,6 +39,7 @@ namespace WebUtility.Editor.Data
                 return null;
             }
             
+            // Поддерживаем обратную совместимость: имя файла может быть как GUID.json, так и TypeName_Name.json
             string configPath = Path.Combine(ConfigsFolderPath, $"{guid}.json");
             
             if (!File.Exists(configPath))
@@ -115,7 +116,18 @@ namespace WebUtility.Editor.Data
                 return null;
             }
             
-            string configPath = Path.Combine(ConfigsFolderPath, $"{guid}.json");
+            // Поддерживаем обратную совместимость: если guid выглядит как ключ (TypeName_Name), используем его напрямую
+            string configPath;
+            if (guid.Contains("_"))
+            {
+                // Новый формат: TypeName_Name.json
+                configPath = Path.Combine(ConfigsFolderPath, $"{guid}.json");
+            }
+            else
+            {
+                // Старый формат: GUID.json
+                configPath = Path.Combine(ConfigsFolderPath, $"{guid}.json");
+            }
             
             if (!File.Exists(configPath))
             {
@@ -169,6 +181,7 @@ namespace WebUtility.Editor.Data
             if (string.IsNullOrEmpty(guid))
                 return false;
             
+            // Поддерживаем обратную совместимость
             string configPath = Path.Combine(ConfigsFolderPath, $"{guid}.json");
             return File.Exists(configPath);
         }
@@ -235,7 +248,9 @@ namespace WebUtility.Editor.Data
                         
                         if (wrapper != null && wrapper.TypeName == type.Name)
                         {
-                            guids.Add(wrapper.Guid);
+                            // Используем имя конфига вместо GUID
+                            string configKey = $"{wrapper.TypeName}_{wrapper.Name}";
+                            guids.Add(configKey);
                         }
                     }
                     catch

@@ -5,6 +5,9 @@ using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+using UnityEditor.AddressableAssets;
+using UnityEditor.AddressableAssets.Settings;
+using UnityEditor.AddressableAssets.Settings.GroupSchemas;
 using Object = UnityEngine.Object;
 
 namespace WebUtility.Editor.Data
@@ -100,7 +103,7 @@ namespace WebUtility.Editor.Data
             {
                 EditorGUILayout.BeginHorizontal();
                 
-                bool isSelected = _selectedConfig != null && _selectedConfig.Guid == config.Guid;
+                bool isSelected = _selectedConfig != null && _selectedConfig.TypeName == config.TypeName && _selectedConfig.Name == config.Name;
                 if (GUILayout.Button(config.Name, isSelected ? EditorStyles.miniButtonMid : EditorStyles.miniButtonLeft))
                 {
                     SelectConfig(config);
@@ -140,11 +143,29 @@ namespace WebUtility.Editor.Data
             string newName = EditorGUILayout.TextField("Name:", _selectedConfig.Name);
             if (EditorGUI.EndChangeCheck() && newName != _selectedConfig.Name)
             {
-                _selectedConfig.UpdateName(newName);
-                SaveConfig(_selectedConfig); // Сохраняем конфиг с новым именем
+                // Проверяем уникальность нового имени
+                if (ConfigNameExists(_selectedConfig.TypeName, newName))
+                {
+                    EditorUtility.DisplayDialog("Error", $"Config with name '{newName}' already exists for type {_selectedConfig.TypeName}. Please choose a different name.", "OK");
+                }
+                else
+                {
+                    string oldName = _selectedConfig.Name;
+                    _selectedConfig.UpdateName(newName);
+                    SaveConfig(_selectedConfig); // Сохраняем конфиг с новым именем
+                    
+                    // Обновляем enum
+                    Type configType = _availableTypeObjects?.FirstOrDefault(t => t.Name == _selectedConfig.TypeName);
+                    if (configType != null)
+                    {
+                        ConfigEnumGenerator.UpdateEnumForType(configType, newName);
+                    }
+                    
+                    // Переименовываем файл
+                    RenameConfigFile(oldName, newName, _selectedConfig.TypeName);
+                }
             }
             
-            EditorGUILayout.LabelField("GUID:", _selectedConfig.Guid);
             EditorGUILayout.LabelField("Type:", _selectedConfig.TypeName);
             
             EditorGUILayout.Space();
@@ -249,18 +270,27 @@ namespace WebUtility.Editor.Data
             }
             
             Type selectedType = _availableTypeObjects[_selectedTypeIndex];
-            string guid = System.Guid.NewGuid().ToString();
+            
+            // Проверяем уникальность имени для этого типа
+            if (ConfigNameExists(selectedType.Name, _newConfigName))
+            {
+                EditorUtility.DisplayDialog("Error", $"Config with name '{_newConfigName}' already exists for type {selectedType.Name}. Please choose a different name.", "OK");
+                return;
+            }
             
             // Создаём экземпляр конфига
             object instance = Activator.CreateInstance(selectedType);
             string json = JsonUtility.ToJson(instance);
             
-            // Создаём обёртку
-            var wrapper = new DataConfigWrapper(guid, selectedType.Name, json, _newConfigName);
+            // Создаём обёртку (без GUID, используем имя)
+            var wrapper = new DataConfigWrapper(selectedType.Name, json, _newConfigName);
             
             // Сохраняем
             SaveConfig(wrapper);
             AddConfigToIndex(wrapper);
+            
+            // Генерируем enum для этого типа
+            ConfigEnumGenerator.UpdateEnumForType(selectedType, _newConfigName);
             
             // Выбираем созданный конфиг
             SelectConfig(wrapper);
@@ -272,6 +302,12 @@ namespace WebUtility.Editor.Data
             Repaint();
             
             Debug.Log($"Created new config: {createdName} ({selectedType.Name})");
+        }
+        
+        private bool ConfigNameExists(string typeName, string configName)
+        {
+            var configs = GetAllConfigs();
+            return configs.Any(c => c.TypeName == typeName && c.Name == configName);
         }
 
         private void SelectConfig(DataConfigWrapper config)
@@ -341,8 +377,9 @@ namespace WebUtility.Editor.Data
 
         private void DeleteConfig(DataConfigWrapper config)
         {
-            // Удаляем файл конфига
-            string configPath = Path.Combine(ConfigsFolderPath, $"{config.Guid}.json");
+            // Удаляем файл конфига (используем имя вместо GUID)
+            string configFileName = SanitizeFileName($"{config.TypeName}_{config.Name}.json");
+            string configPath = Path.Combine(ConfigsFolderPath, configFileName);
             if (File.Exists(configPath))
             {
                 File.Delete(configPath);
@@ -351,6 +388,13 @@ namespace WebUtility.Editor.Data
             
             // Удаляем из индекса
             RemoveConfigFromIndex(config);
+            
+            // Обновляем enum
+            Type configType = _availableTypeObjects?.FirstOrDefault(t => t.Name == config.TypeName);
+            if (configType != null)
+            {
+                ConfigEnumGenerator.UpdateEnumForType(configType, config.Name, isRemoved: true);
+            }
             
             if (_selectedConfig == config)
             {
@@ -403,8 +447,9 @@ namespace WebUtility.Editor.Data
                 }
             }
             
-            // Сохраняем в файл
-            string configPath = Path.Combine(ConfigsFolderPath, $"{config.Guid}.json");
+            // Сохраняем в файл (используем имя вместо GUID)
+            string configFileName = SanitizeFileName($"{config.TypeName}_{config.Name}.json");
+            string configPath = Path.Combine(ConfigsFolderPath, configFileName);
             string jsonContent = JsonUtility.ToJson(config, true);
             
             try
@@ -423,7 +468,10 @@ namespace WebUtility.Editor.Data
             
             AssetDatabase.Refresh();
             
-            Debug.Log($"Config saved: {config.Name} ({config.Guid}) at {configPath}");
+            // Добавляем конфиг в Addressables (используем имя)
+            AddConfigToAddressables(configPath, config.Name, config.TypeName);
+            
+            Debug.Log($"Config saved: {config.Name} ({config.TypeName}) at {configPath}");
         }
 
         private object CreateSerializableCopy(object source, Type type)
@@ -666,14 +714,31 @@ namespace WebUtility.Editor.Data
                     string assetPath = AssetDatabase.GetAssetPath(unityObj);
                     if (!string.IsNullOrEmpty(assetPath))
                     {
+                        // Пропускаем встроенные ресурсы Unity
+                        if (assetPath.Contains("unity_builtin_extra") || assetPath.Contains("Library/unity default resources"))
+                        {
+                            Debug.LogWarning($"Cannot save reference to built-in Unity resource: {assetPath}. Use a regular asset instead.");
+                            continue;
+                        }
+                        
                         string guid = AssetDatabase.AssetPathToGUID(assetPath);
                         if (!string.IsNullOrEmpty(guid))
                         {
+                            string address = GetAddressableAddress(assetPath);
+                            
+                            // Если объект не в Addressables, добавляем его автоматически
+                            if (string.IsNullOrEmpty(address))
+                            {
+                                AddUnityObjectToAddressables(assetPath, guid);
+                                address = GetAddressableAddress(assetPath);
+                            }
+                            
                             references.references.Add(new ObjectReferenceData(
                                 currentPath,
                                 guid,
                                 assetPath,
-                                fieldType.AssemblyQualifiedName
+                                fieldType.AssemblyQualifiedName,
+                                address
                             ));
                         }
                     }
@@ -684,12 +749,25 @@ namespace WebUtility.Editor.Data
                         if (!string.IsNullOrEmpty(prefabPath))
                         {
                             string guid = AssetDatabase.AssetPathToGUID(prefabPath);
-                            references.references.Add(new ObjectReferenceData(
-                                currentPath,
-                                guid,
-                                prefabPath,
-                                fieldType.AssemblyQualifiedName
-                            ));
+                            if (!string.IsNullOrEmpty(guid))
+                            {
+                                string address = GetAddressableAddress(prefabPath);
+                                
+                                // Если объект не в Addressables, добавляем его автоматически
+                                if (string.IsNullOrEmpty(address))
+                                {
+                                    AddUnityObjectToAddressables(prefabPath, guid);
+                                    address = GetAddressableAddress(prefabPath);
+                                }
+                                
+                                references.references.Add(new ObjectReferenceData(
+                                    currentPath,
+                                    guid,
+                                    prefabPath,
+                                    fieldType.AssemblyQualifiedName,
+                                    address
+                                ));
+                            }
                         }
                     }
                 }
@@ -714,14 +792,30 @@ namespace WebUtility.Editor.Data
                                     string assetPath = AssetDatabase.GetAssetPath(obj);
                                     if (!string.IsNullOrEmpty(assetPath))
                                     {
+                                        // Пропускаем встроенные ресурсы Unity
+                                        if (assetPath.Contains("unity_builtin_extra") || assetPath.Contains("Library/unity default resources"))
+                                        {
+                                            continue;
+                                        }
+                                        
                                         string guid = AssetDatabase.AssetPathToGUID(assetPath);
                                         if (!string.IsNullOrEmpty(guid))
                                         {
+                                            string address = GetAddressableAddress(assetPath);
+                                            
+                                            // Если объект не в Addressables, добавляем его автоматически
+                                            if (string.IsNullOrEmpty(address))
+                                            {
+                                                AddUnityObjectToAddressables(assetPath, guid);
+                                                address = GetAddressableAddress(assetPath);
+                                            }
+                                            
                                             references.references.Add(new ObjectReferenceData(
                                                 $"{currentPath}[{i}]",
                                                 guid,
                                                 assetPath,
-                                                elementType.AssemblyQualifiedName
+                                                elementType.AssemblyQualifiedName,
+                                                address
                                             ));
                                         }
                                     }
@@ -778,6 +872,79 @@ namespace WebUtility.Editor.Data
                 {
                     Debug.LogWarning($"Failed to restore reference {refData.fieldPath}: {e.Message}");
                 }
+            }
+        }
+
+        private string GetAddressableAddress(string assetPath)
+        {
+            try
+            {
+                var settings = AddressableAssetSettingsDefaultObject.Settings;
+                if (settings == null)
+                    return null;
+                
+                string guid = AssetDatabase.AssetPathToGUID(assetPath);
+                if (string.IsNullOrEmpty(guid))
+                    return null;
+                
+                var entry = settings.FindAssetEntry(guid);
+                return entry?.address;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private void AddUnityObjectToAddressables(string assetPath, string guid)
+        {
+            try
+            {
+                var settings = AddressableAssetSettingsDefaultObject.Settings;
+                if (settings == null)
+                {
+                    Debug.LogWarning("AddressableAssetSettings not found. Cannot add Unity object to Addressables.");
+                    return;
+                }
+
+                // Проверяем, не добавлен ли уже
+                var existingEntry = settings.FindAssetEntry(guid);
+                if (existingEntry != null)
+                    return;
+
+                // Создаём группу для Unity объектов если её нет
+                const string UnityObjectsGroupName = "UnityObjects";
+                var group = settings.FindGroup(UnityObjectsGroupName);
+                if (group == null)
+                {
+                    group = settings.CreateGroup(UnityObjectsGroupName, false, false, false, null, typeof(BundledAssetGroupSchema));
+                    if (group != null)
+                    {
+                        group.AddSchema<ContentUpdateGroupSchema>();
+                    }
+                }
+
+                if (group == null)
+                    return;
+
+                // Создаём entry
+                var entry = settings.CreateOrMoveEntry(guid, group, readOnly: false, postEvent: false);
+                if (entry != null)
+                {
+                    // Используем имя файла как адрес
+                    string fileName = System.IO.Path.GetFileNameWithoutExtension(assetPath);
+                    entry.address = fileName;
+                    
+                    // Добавляем метку
+                    entry.SetLabel("UnityObject", true, true);
+                    
+                    EditorUtility.SetDirty(settings);
+                    AssetDatabase.SaveAssets();
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"Failed to add Unity object to Addressables: {e.Message}");
             }
         }
 
@@ -875,6 +1042,98 @@ namespace WebUtility.Editor.Data
             _needsRefresh = false;
         }
 
+        private string SanitizeFileName(string fileName)
+        {
+            // Убираем недопустимые символы для имени файла
+            char[] invalidChars = Path.GetInvalidFileNameChars();
+            string sanitized = fileName;
+            foreach (char c in invalidChars)
+            {
+                sanitized = sanitized.Replace(c, '_');
+            }
+            return sanitized;
+        }
+        
+        private void RenameConfigFile(string oldName, string newName, string typeName)
+        {
+            string oldFileName = SanitizeFileName($"{typeName}_{oldName}.json");
+            string newFileName = SanitizeFileName($"{typeName}_{newName}.json");
+            string oldPath = Path.Combine(ConfigsFolderPath, oldFileName);
+            string newPath = Path.Combine(ConfigsFolderPath, newFileName);
+            
+            if (File.Exists(oldPath))
+            {
+                File.Move(oldPath, newPath);
+                AssetDatabase.MoveAsset(oldPath, newPath);
+                AssetDatabase.Refresh();
+            }
+        }
+        
+        private void AddConfigToAddressables(string configPath, string configName, string typeName)
+        {
+            try
+            {
+                var settings = AddressableAssetSettingsDefaultObject.Settings;
+                if (settings == null)
+                {
+                    Debug.LogWarning("AddressableAssetSettings not found. Create Addressables settings first.");
+                    return;
+                }
+
+                string assetGuid = AssetDatabase.AssetPathToGUID(configPath);
+                if (string.IsNullOrEmpty(assetGuid))
+                {
+                    Debug.LogWarning($"Failed to get GUID for config: {configPath}");
+                    return;
+                }
+
+                const string AddressableGroupName = "Configs";
+                const string AddressLabel = "Config";
+                const string AddressPrefix = "Configs/";
+
+                // Создаём группу если её нет
+                var group = settings.FindGroup(AddressableGroupName);
+                if (group == null)
+                {
+                    group = settings.CreateGroup(AddressableGroupName, false, false, false, null, typeof(BundledAssetGroupSchema));
+                    if (group != null)
+                    {
+                        group.AddSchema<ContentUpdateGroupSchema>();
+                    }
+                }
+
+                // Создаём или обновляем entry
+                var entry = settings.FindAssetEntry(assetGuid);
+                if (entry == null)
+                {
+                    entry = settings.CreateOrMoveEntry(assetGuid, group, readOnly: false, postEvent: false);
+                }
+                else if (entry.parentGroup != group)
+                {
+                    settings.MoveEntry(entry, group);
+                }
+
+                // Используем имя конфига как адрес: Configs/TypeName_ConfigName
+                string address = $"{AddressPrefix}{typeName}_{configName}";
+                if (entry.address != address)
+                {
+                    entry.address = address;
+                    EditorUtility.SetDirty(settings);
+                    AssetDatabase.SaveAssets();
+                }
+
+                // Добавляем метку
+                entry.SetLabel(AddressLabel, true, true);
+
+                EditorUtility.SetDirty(settings);
+                AssetDatabase.SaveAssets();
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"Failed to add config to Addressables: {e.Message}");
+            }
+        }
+
         private void AddConfigToIndex(DataConfigWrapper config)
         {
             ConfigsIndex index;
@@ -895,9 +1154,10 @@ namespace WebUtility.Editor.Data
             if (index.configs == null)
                 index.configs = new List<string>();
             
-            if (!index.configs.Contains(config.Guid))
+            string configKey = $"{config.TypeName}_{config.Name}";
+            if (!index.configs.Contains(configKey))
             {
-                index.configs.Add(config.Guid);
+                index.configs.Add(configKey);
             }
             
             SaveConfigsIndex();
@@ -913,7 +1173,8 @@ namespace WebUtility.Editor.Data
             
             if (index != null && index.configs != null)
             {
-                index.configs.Remove(config.Guid);
+                string configKey = $"{config.TypeName}_{config.Name}";
+                index.configs.Remove(configKey);
                 SaveConfigsIndex();
             }
         }
@@ -961,7 +1222,7 @@ namespace WebUtility.Editor.Data
             
             var index = new ConfigsIndex
             {
-                configs = configs.Select(c => c.Guid).Distinct().ToList()
+                configs = configs.Select(c => $"{c.TypeName}_{c.Name}").Distinct().ToList()
             };
             
             string json = JsonUtility.ToJson(index, true);

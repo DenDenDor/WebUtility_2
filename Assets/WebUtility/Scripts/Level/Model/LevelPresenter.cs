@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using WebUtility;
+using WebUtility.Data;
 
 public class LevelPresenter : IPresenter
 {
@@ -9,10 +10,11 @@ public class LevelPresenter : IPresenter
     public void Init()
     {
         _levelWindow.Clicked += OnClicked;
+        GameObject go = DataConfigManager.GetData<WeaponData>(WeaponDataType.FireArmBow).Go;
         
-        GameObject go = DataConfigManager.GetData<WeaponData>("390a5133-85d0-4158-8ef8-bd4b7bc9b3ee").Go;
-
         Debug.LogError("GO " + go);
+
+        Object.Instantiate(go, Vector3.zero,  Quaternion.identity);
     }
 
     private void OnClicked()

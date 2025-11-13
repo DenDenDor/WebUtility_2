@@ -6,13 +6,11 @@ namespace WebUtility.Editor.Data
     [Serializable]
     public class DataConfigWrapper
     {
-        [SerializeField] private string guid;
         [SerializeField] private string typeName;
         [SerializeField] private string jsonData;
         [SerializeField] private string name;
         [SerializeField] private string objectReferencesJson; // JSON с ссылками на Unity объекты
 
-        public string Guid => guid;
         public string TypeName => typeName;
         public string JsonData => jsonData;
         public string Name => name;
@@ -23,9 +21,8 @@ namespace WebUtility.Editor.Data
         {
         }
 
-        public DataConfigWrapper(string guid, string typeName, string jsonData, string name)
+        public DataConfigWrapper(string typeName, string jsonData, string name)
         {
-            this.guid = guid;
             this.typeName = typeName;
             this.jsonData = jsonData;
             this.name = name;

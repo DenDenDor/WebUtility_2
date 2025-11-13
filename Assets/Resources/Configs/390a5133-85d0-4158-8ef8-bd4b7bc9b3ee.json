@@ -1,7 +1,0 @@
-{
-    "guid": "390a5133-85d0-4158-8ef8-bd4b7bc9b3ee",
-    "typeName": "TestGameConfig",
-    "jsonData": "{\"Sprite\":{\"instanceID\":706},\"Go\":{\"instanceID\":0}}",
-    "name": "a",
-    "objectReferencesJson": "{\"references\":[{\"fieldPath\":\"Sprite\",\"objectGuid\":\"0000000000000000f000000000000000\",\"assetPath\":\"Resources/unity_builtin_extra\",\"objectType\":\"UnityEngine.Sprite, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null\"},{\"fieldPath\":\"Go\",\"objectGuid\":\"33a6f1623cc49bc43a1cd6859ce2b595\",\"assetPath\":\"Assets/LevelWindow.prefab\",\"objectType\":\"UnityEngine.GameObject, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null\"}]}"
-}
