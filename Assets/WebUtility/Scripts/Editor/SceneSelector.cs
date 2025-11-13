@@ -9,9 +9,4 @@ namespace WebUtility
     {
         public bool includeInBuild = false;
     }
-
-    [CustomEditor(typeof(SceneSelector))]
-    public class SceneSelectorEditor : Editor
-    {
-    }
 }

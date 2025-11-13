@@ -1,0 +1,51 @@
+using System;
+using UnityEngine;
+
+namespace WebUtility.Editor.Data
+{
+    [Serializable]
+    public class DataConfigWrapper
+    {
+        [SerializeField] private string guid;
+        [SerializeField] private string typeName;
+        [SerializeField] private string jsonData;
+        [SerializeField] private string name;
+        [SerializeField] private string objectReferencesJson; // JSON с ссылками на Unity объекты
+
+        public string Guid => guid;
+        public string TypeName => typeName;
+        public string JsonData => jsonData;
+        public string Name => name;
+        public string ObjectReferencesJson => objectReferencesJson;
+
+        // Пустой конструктор для JsonUtility
+        public DataConfigWrapper()
+        {
+        }
+
+        public DataConfigWrapper(string guid, string typeName, string jsonData, string name)
+        {
+            this.guid = guid;
+            this.typeName = typeName;
+            this.jsonData = jsonData;
+            this.name = name;
+            this.objectReferencesJson = "";
+        }
+
+        public void UpdateJsonData(string newJsonData)
+        {
+            jsonData = newJsonData;
+        }
+
+        public void UpdateName(string newName)
+        {
+            name = newName;
+        }
+
+        public void UpdateObjectReferences(string referencesJson)
+        {
+            objectReferencesJson = referencesJson;
+        }
+    }
+}
+
