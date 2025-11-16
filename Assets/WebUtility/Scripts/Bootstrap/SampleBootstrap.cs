@@ -10,7 +10,6 @@ public class SampleBootstrap : MonoBehaviour
     private List<IDIRouter> _routers = new List<IDIRouter>()
     {
         new UpdateRouter(),
-        //new InvetnroyRouter(), 
         new ShopRouter()
     };
     
@@ -37,9 +36,6 @@ public class SampleBootstrap : MonoBehaviour
                 presenter.Init();
             }
         }
-        
-        // var updateManager = gameObject.AddComponent<AutoUpdateManager>();
-        // updateManager.Initialize(_container);
     }
 
     private void RegisterSceneWindows()
@@ -71,7 +67,6 @@ public class SampleBootstrap : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            //_container.RegisterInstance(new SlotModel());
         }
     }
 }

@@ -1,6 +1,6 @@
 ﻿public enum TypeSDK
 {
-    PlayerPrefs = 0,
-    Yandex = 1,
-    CrazyGames = 2,
+    
+    PlayerPrefs = 1,
+    Yandex = 2,
 }

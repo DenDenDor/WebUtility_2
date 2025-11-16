@@ -3,7 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public abstract class AbstractSDKAdapter : ScriptableObject
+[Serializable]
+public abstract class AbstractSDKAdapter : AbstractData
 {
   public virtual void Init()
   {

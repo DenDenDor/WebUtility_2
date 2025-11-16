@@ -11,7 +11,7 @@ namespace WebUtility
 {
     [CustomEditor(typeof(SceneAsset))]
     [CanEditMultipleObjects]
-    public class SceneAssetEditor : Editor
+    public class SceneAssetEditor : UnityEditor.Editor
     {
         private const string LabelName = "SceneChecked";
 

@@ -1,0 +1,6 @@
+{
+    "typeName": "TestWeaponConfig",
+    "jsonData": "{\"weaponName\":\"Sword\",\"damage\":505.0,\"attackSpeed\":1.5,\"durability\":100,\"size\":{\"x\":1.0,\"y\":2.0},\"isRanged\":false,\"_range\":5.0,\"_weaponColor\":{\"r\":0.5,\"g\":0.5,\"b\":0.5,\"a\":1.0}}",
+    "name": "WeaponFire",
+    "objectReferencesJson": ""
+}

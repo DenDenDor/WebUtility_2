@@ -1,5 +1,3 @@
-// Auto-generated EntryPoint for scene
-// SceneGUID: 5093348c5b7211e4c9dfb724249260c0
 using UnityEngine;
 using System.Collections.Generic;
 using WebUtility;
@@ -11,6 +9,7 @@ public class LevelEntryPoint : AbstractEntryPoint
 	
 	protected override List<IDIRouter> Routers => new List<IDIRouter>()
 	{
+		new SDKAdapterRouter(),
 		new LevelRouter()
 	};
 }

@@ -1,0 +1,8 @@
+{
+    "configs": [
+        "TestWeaponConfig_WeaponFire",
+        "WeaponData_Firearm",
+        "WeaponData_FireArmBow",
+        "WeaponData_FroozenSword7"
+    ]
+}

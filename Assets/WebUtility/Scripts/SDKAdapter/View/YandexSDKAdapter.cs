@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "YandexSDKAdapter", menuName = "SDKAdapter/Yandex")]
+[Serializable]
 public class YandexSDKAdapter : AbstractSDKAdapter
 {
     private readonly string _saveKey = "SaveKey";
@@ -106,7 +106,6 @@ public class YandexSDKAdapter : AbstractSDKAdapter
 
     public override IEnumerator GetUserSprite(Action<Sprite> action)
     {
-        // Create a simple placeholder sprite
         Texture2D texture = new Texture2D(64, 64);
         Color[] colors = new Color[64 * 64];
         for (int i = 0; i < colors.Length; i++)

@@ -28,9 +28,6 @@ namespace WebUtility
             Register(typeof(TInterface), typeof(TImplementation), lifetime, key);
         }
 
-        /// <summary>
-        /// Регистрация сервиса с фабрикой
-        /// </summary>
         public void Register<TInterface>(Func<TInterface> factory, Lifetime lifetime = Lifetime.Transient, string key = null)
         {
             var type = typeof(TInterface);
@@ -51,9 +48,6 @@ namespace WebUtility
             _lifetimes[type][key] = lifetime;
         }
 
-        /// <summary>
-        /// Регистрация существующего экземпляра как singleton
-        /// </summary>
         public void RegisterInstance<TInterface>(TInterface instance, string key = null)
         {
             var type = typeof(TInterface);
@@ -63,21 +57,14 @@ namespace WebUtility
             _services[type][key] = () => instance;
             _lifetimes[type][key] = Lifetime.Singleton;
             
-            // Уведомляем о регистрации нового экземпляра
             OnInstanceRegistered?.Invoke(instance);
         }
 
-        /// <summary>
-        /// Получение сервиса
-        /// </summary>
         public T Resolve<T>(string key = null)
         {
             return (T)Resolve(typeof(T), key);
         }
 
-        /// <summary>
-        /// Попытка получения сервиса
-        /// </summary>
         public bool TryResolve<T>(out T service, string key = null)
         {
             service = default(T);
@@ -89,9 +76,6 @@ namespace WebUtility
             return false;
         }
 
-        /// <summary>
-        /// Получение сервиса по типу
-        /// </summary>
         public object Resolve(Type type, string key = null)
         {
             if (TryResolve(type, out var service, key))
@@ -102,14 +86,10 @@ namespace WebUtility
             throw new InvalidOperationException($"Service of type {type.Name} with key '{key ?? "null"}' is not registered.");
         }
 
-        /// <summary>
-        /// Попытка получения сервиса по типу
-        /// </summary>
         public bool TryResolve(Type type, out object service, string key = null)
         {
             service = null;
 
-            // Нормализуем null ключ к пустой строке
             key = key ?? DEFAULT_KEY;
 
             if (!_services.ContainsKey(type))
@@ -126,9 +106,6 @@ namespace WebUtility
             return true;
         }
 
-        /// <summary>
-        /// Инъекция зависимостей в объект через поля, свойства и конструктор
-        /// </summary>
         public void InjectDependencies(object target)
         {
             if (target == null)
@@ -136,30 +113,20 @@ namespace WebUtility
 
             var type = target.GetType();
 
-            // Инъекция через конструктор
             InjectConstructor(target, type);
 
-            // Инъекция через поля
             InjectFields(target, type);
 
-            // Инъекция через свойства
             InjectProperties(target, type);
         }
 
-        /// <summary>
-        /// Создание экземпляра с автоматической инъекцией зависимостей
-        /// </summary>
         public T CreateInstance<T>() where T : class
         {
             return (T)CreateInstance(typeof(T));
         }
 
-        /// <summary>
-        /// Создание экземпляра с автоматической инъекцией зависимостей
-        /// </summary>
         public object CreateInstance(Type type)
         {
-            // Поиск конструктора с атрибутом [Inject]
             var constructors = type.GetConstructors(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
             ConstructorInfo constructor = null;
 
@@ -172,7 +139,6 @@ namespace WebUtility
                 }
             }
 
-            // Если конструктор с [Inject] не найден, используем конструктор с наибольшим количеством параметров
             if (constructor == null)
             {
                 constructor = constructors
@@ -210,7 +176,6 @@ namespace WebUtility
 
         private void InjectConstructor(object target, Type type)
         {
-            // Конструктор уже вызван, пропускаем
         }
 
         private void InjectFields(object target, Type type)
@@ -224,7 +189,7 @@ namespace WebUtility
                     continue;
 
                 if (field.GetValue(target) != null)
-                    continue; // Уже инициализировано
+                    continue;
 
                 var fieldType = field.FieldType;
                 var key = injectAttr.Key;
@@ -254,7 +219,7 @@ namespace WebUtility
                     continue;
 
                 if (property.GetValue(target) != null)
-                    continue; // Уже инициализировано
+                    continue;
 
                 var propertyType = property.PropertyType;
                 var key = injectAttr.Key;
@@ -290,7 +255,6 @@ namespace WebUtility
                         {
                             var instance = CreateInstance(implementationType);
                             _singletons[singletonKey] = instance;
-                            // Уведомляем о создании нового singleton экземпляра
                             OnInstanceRegistered?.Invoke(instance);
                             return instance;
                         }
@@ -308,7 +272,6 @@ namespace WebUtility
 
         private void EnsureKeyDictionary(Type type, string key)
         {
-            // Нормализуем null ключ к пустой строке
             key = key ?? DEFAULT_KEY;
             
             if (!_services.ContainsKey(type))
@@ -334,8 +297,6 @@ namespace WebUtility
 
         private Type GetSingletonKey(Type type, string key)
         {
-            // Создаем уникальный ключ для singleton
-            // key не используется здесь, но нормализуем для консистентности
             key = key ?? DEFAULT_KEY;
             return type;
         }
