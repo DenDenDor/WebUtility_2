@@ -13,22 +13,18 @@ namespace WebUtility.Editor.Data
             if (target == null || type == null)
                 return;
             
-            // Получаем все поля: публичные и с атрибутом SerializeField
             FieldInfo[] allFields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             var fields = new List<FieldInfo>();
             
             foreach (var field in allFields)
             {
-                // Включаем публичные поля
                 if (field.IsPublic)
                 {
-                    // Пропускаем поля с атрибутом NonSerialized
                     if (field.GetCustomAttribute<System.NonSerializedAttribute>() == null)
                     {
                         fields.Add(field);
                     }
                 }
-                // Включаем приватные/защищённые поля с атрибутом SerializeField
                 else if (field.GetCustomAttribute<SerializeField>() != null)
                 {
                     fields.Add(field);
@@ -37,17 +33,14 @@ namespace WebUtility.Editor.Data
             
             foreach (var field in fields)
             {
-                // Пропускаем поля с атрибутом NonSerialized
                 if (field.GetCustomAttribute<System.NonSerializedAttribute>() != null)
                     continue;
                 
                 Type fieldType = field.FieldType;
                 object fieldValue = field.GetValue(target);
                 
-                // Отображаем поле в зависимости от типа
                 if (typeof(UnityEngine.Object).IsAssignableFrom(fieldType))
                 {
-                    // Для Unity объектов используем ObjectField
                     UnityEngine.Object objValue = fieldValue as UnityEngine.Object;
                     UnityEngine.Object newValue = EditorGUILayout.ObjectField(
                         field.Name, 
@@ -147,7 +140,6 @@ namespace WebUtility.Editor.Data
                 }
                 else if (fieldType.IsClass && fieldType.GetCustomAttribute<SerializableAttribute>() != null)
                 {
-                    // Вложенный класс
                     EditorGUILayout.LabelField(field.Name, fieldType.Name);
                     EditorGUI.indentLevel++;
                     if (fieldValue != null)

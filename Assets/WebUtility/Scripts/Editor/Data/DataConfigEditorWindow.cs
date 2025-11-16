@@ -43,10 +43,8 @@ namespace WebUtility.Editor.Data
         {
             EditorGUILayout.BeginHorizontal();
             
-            // Левая панель - список конфигов
             DrawConfigList();
             
-            // Правая панель - редактор выбранного конфига
             DrawConfigEditor();
             
             EditorGUILayout.EndHorizontal();
@@ -58,17 +56,15 @@ namespace WebUtility.Editor.Data
             
             EditorGUILayout.LabelField("Configs", EditorStyles.boldLabel);
             
-            // Кнопка обновления
             if (GUILayout.Button("Refresh"))
             {
                 RefreshAvailableTypes();
                 LoadConfigs();
-                Repaint(); // Принудительно обновляем окно
+                Repaint();
             }
             
             EditorGUILayout.Space();
             
-            // Создание нового конфига
             EditorGUILayout.LabelField("Create New Config", EditorStyles.boldLabel);
             _newConfigName = EditorGUILayout.TextField("Name:", _newConfigName);
             
@@ -89,7 +85,6 @@ namespace WebUtility.Editor.Data
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Existing Configs", EditorStyles.boldLabel);
             
-            // Список существующих конфигов
             _configListScroll = EditorGUILayout.BeginScrollView(_configListScroll);
             
             var configs = GetAllConfigs();
@@ -138,12 +133,10 @@ namespace WebUtility.Editor.Data
             
             EditorGUILayout.LabelField("Edit Config", EditorStyles.boldLabel);
             
-            // Имя конфига
             EditorGUI.BeginChangeCheck();
             string newName = EditorGUILayout.TextField("Name:", _selectedConfig.Name);
             if (EditorGUI.EndChangeCheck() && newName != _selectedConfig.Name)
             {
-                // Проверяем уникальность нового имени
                 if (ConfigNameExists(_selectedConfig.TypeName, newName))
                 {
                     EditorUtility.DisplayDialog("Error", $"Config with name '{newName}' already exists for type {_selectedConfig.TypeName}. Please choose a different name.", "OK");
@@ -152,16 +145,14 @@ namespace WebUtility.Editor.Data
                 {
                     string oldName = _selectedConfig.Name;
                     _selectedConfig.UpdateName(newName);
-                    SaveConfig(_selectedConfig); // Сохраняем конфиг с новым именем
+                    SaveConfig(_selectedConfig);
                     
-                    // Обновляем enum
                     Type configType = _availableTypeObjects?.FirstOrDefault(t => t.Name == _selectedConfig.TypeName);
                     if (configType != null)
                     {
                         ConfigEnumGenerator.UpdateEnumForType(configType, newName);
                     }
                     
-                    // Переименовываем файл
                     RenameConfigFile(oldName, newName, _selectedConfig.TypeName);
                 }
             }
@@ -170,7 +161,6 @@ namespace WebUtility.Editor.Data
             
             EditorGUILayout.Space();
             
-            // Редактор полей конфига
             if (_selectedConfigInstance != null)
             {
                 _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
@@ -178,7 +168,6 @@ namespace WebUtility.Editor.Data
                 EditorGUI.BeginChangeCheck();
                 bool hasChanges = false;
                 
-                // Получаем данные из holder
                 if (_selectedConfigInstance is ConfigDataHolder holder)
                 {
                     object data = holder.GetData();
@@ -186,10 +175,8 @@ namespace WebUtility.Editor.Data
                     
                     if (data != null && dataType != null)
                     {
-                        // Используем рефлексию для отображения полей
                         ConfigFieldEditor.DrawFields(data, dataType);
                         
-                        // Проверяем изменения
                         hasChanges = EditorGUI.EndChangeCheck();
                         
                         if (hasChanges)
@@ -200,18 +187,17 @@ namespace WebUtility.Editor.Data
                     }
                     else
                     {
-                        EditorGUI.EndChangeCheck(); // Закрываем BeginChangeCheck
+                        EditorGUI.EndChangeCheck();
                         EditorGUILayout.HelpBox("Failed to load config data", MessageType.Error);
                     }
                 }
                 else
                 {
-                    EditorGUI.EndChangeCheck(); // Закрываем BeginChangeCheck
+                    EditorGUI.EndChangeCheck();
                 }
                 
                 EditorGUILayout.EndScrollView();
                 
-                // Кнопка сохранения
                 EditorGUILayout.Space();
                 if (GUILayout.Button("Save", GUILayout.Height(30)))
                 {
@@ -240,7 +226,6 @@ namespace WebUtility.Editor.Data
                     
                     if (typeof(AbstractData).IsAssignableFrom(type))
                     {
-                        // Проверяем наличие Serializable атрибута
                         if (type.GetCustomAttribute<SerializableAttribute>() != null || 
                             type.IsSerializable)
                         {
@@ -271,34 +256,27 @@ namespace WebUtility.Editor.Data
             
             Type selectedType = _availableTypeObjects[_selectedTypeIndex];
             
-            // Проверяем уникальность имени для этого типа
             if (ConfigNameExists(selectedType.Name, _newConfigName))
             {
                 EditorUtility.DisplayDialog("Error", $"Config with name '{_newConfigName}' already exists for type {selectedType.Name}. Please choose a different name.", "OK");
                 return;
             }
             
-            // Создаём экземпляр конфига
             object instance = Activator.CreateInstance(selectedType);
             string json = JsonUtility.ToJson(instance);
             
-            // Создаём обёртку (без GUID, используем имя)
             var wrapper = new DataConfigWrapper(selectedType.Name, json, _newConfigName);
             
-            // Сохраняем
             SaveConfig(wrapper);
             AddConfigToIndex(wrapper);
             
-            // Генерируем enum для этого типа
             ConfigEnumGenerator.UpdateEnumForType(selectedType, _newConfigName);
             
-            // Выбираем созданный конфиг
             SelectConfig(wrapper);
             
             string createdName = _newConfigName;
             _newConfigName = "";
             
-            // Принудительно обновляем окно
             Repaint();
             
             Debug.Log($"Created new config: {createdName} ({selectedType.Name})");
@@ -316,17 +294,14 @@ namespace WebUtility.Editor.Data
             
             try
             {
-                // Находим тип
                 Type configType = _availableTypeObjects.FirstOrDefault(t => t.Name == config.TypeName);
                 if (configType == null)
                 {
-                    // Пытаемся найти тип в других сборках
                     foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
                     {
                         configType = assembly.GetType(config.TypeName);
                         if (configType != null) break;
                         
-                        // Пробуем с namespace
                         var fullName = assembly.GetTypes().FirstOrDefault(t => t.Name == config.TypeName);
                         if (fullName != null)
                         {
@@ -343,10 +318,8 @@ namespace WebUtility.Editor.Data
                     return;
                 }
                 
-                // Десериализуем из JSON
                 object instance = JsonUtility.FromJson(config.JsonData, configType);
                 
-                // Восстанавливаем ссылки на Unity объекты
                 if (!string.IsNullOrEmpty(config.ObjectReferencesJson))
                 {
                     try
@@ -363,7 +336,6 @@ namespace WebUtility.Editor.Data
                     }
                 }
                 
-                // Создаём ScriptableObject для редактирования (работает для всех типов)
                 var so = ScriptableObject.CreateInstance<ConfigDataHolder>();
                 so.SetData(instance, configType);
                 _selectedConfigInstance = so;
@@ -377,7 +349,6 @@ namespace WebUtility.Editor.Data
 
         private void DeleteConfig(DataConfigWrapper config)
         {
-            // Удаляем файл конфига (используем имя вместо GUID)
             string configFileName = SanitizeFileName($"{config.TypeName}_{config.Name}.json");
             string configPath = Path.Combine(ConfigsFolderPath, configFileName);
             if (File.Exists(configPath))
@@ -386,10 +357,8 @@ namespace WebUtility.Editor.Data
                 AssetDatabase.DeleteAsset(configPath);
             }
             
-            // Удаляем из индекса
             RemoveConfigFromIndex(config);
             
-            // Обновляем enum
             Type configType = _availableTypeObjects?.FirstOrDefault(t => t.Name == config.TypeName);
             if (configType != null)
             {
@@ -412,28 +381,22 @@ namespace WebUtility.Editor.Data
                 Directory.CreateDirectory(ConfigsFolderPath);
             }
             
-            // Обновляем JSON из текущего экземпляра
             if (_selectedConfigInstance != null)
             {
-                // Получаем данные из ScriptableObject
                 if (_selectedConfigInstance is ConfigDataHolder holder)
                 {
                     object data = holder.GetData();
                     
                     if (data != null)
                     {
-                        // Собираем ссылки на Unity объекты
                         var objectReferences = new ConfigObjectReferences();
                         CollectUnityObjectReferences(data, holder.DataType, "", objectReferences);
                         
-                        // Создаём копию данных для сериализации (чтобы не потерять MonoBehaviour ссылки)
                         object dataCopy = CreateSerializableCopy(data, holder.DataType);
                         
-                        // Сериализуем в JSON
                         string json = JsonUtility.ToJson(dataCopy);
                         config.UpdateJsonData(json);
                         
-                        // Сохраняем ссылки на Unity объекты
                         if (objectReferences.references.Count > 0)
                         {
                             string referencesJson = JsonUtility.ToJson(objectReferences);
@@ -447,7 +410,6 @@ namespace WebUtility.Editor.Data
                 }
             }
             
-            // Сохраняем в файл (используем имя вместо GUID)
             string configFileName = SanitizeFileName($"{config.TypeName}_{config.Name}.json");
             string configPath = Path.Combine(ConfigsFolderPath, configFileName);
             string jsonContent = JsonUtility.ToJson(config, true);
@@ -463,12 +425,10 @@ namespace WebUtility.Editor.Data
                 return;
             }
             
-            // Убеждаемся, что конфиг в индексе
             AddConfigToIndex(config);
             
             AssetDatabase.Refresh();
             
-            // Добавляем конфиг в Addressables (используем имя)
             AddConfigToAddressables(configPath, config.Name, config.TypeName);
             
             Debug.Log($"Config saved: {config.Name} ({config.TypeName}) at {configPath}");
@@ -476,37 +436,29 @@ namespace WebUtility.Editor.Data
 
         private object CreateSerializableCopy(object source, Type type)
         {
-            // Проверяем, можно ли создать экземпляр этого типа
             if (type.IsPrimitive || type == typeof(string) || type == typeof(decimal))
             {
-                // Для примитивных типов и строк просто возвращаем значение
                 return source;
             }
             
             if (type.IsValueType)
             {
-                // Для структур просто возвращаем значение (они копируются по значению)
                 return source;
             }
             
-            // Проверяем наличие конструктора по умолчанию
             if (type.GetConstructor(Type.EmptyTypes) == null && !type.IsValueType)
             {
-                // Если нет конструктора по умолчанию, возвращаем исходный объект
                 Debug.LogWarning($"Type {type.Name} doesn't have a default constructor. Using original object.");
                 return source;
             }
             
-            // Создаём новый экземпляр
             object copy = Activator.CreateInstance(type);
             
-            // Копируем все сериализуемые поля (публичные и с SerializeField)
             FieldInfo[] allFields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             var fields = new List<FieldInfo>();
             
             foreach (var field in allFields)
             {
-                // Включаем публичные поля
                 if (field.IsPublic)
                 {
                     if (field.GetCustomAttribute<System.NonSerializedAttribute>() == null)
@@ -514,7 +466,6 @@ namespace WebUtility.Editor.Data
                         fields.Add(field);
                     }
                 }
-                // Включаем приватные/защищённые поля с атрибутом SerializeField
                 else if (field.GetCustomAttribute<SerializeField>() != null)
                 {
                     fields.Add(field);
@@ -529,11 +480,9 @@ namespace WebUtility.Editor.Data
                 Type fieldType = field.FieldType;
                 object fieldValue = field.GetValue(source);
                 
-                // Для MonoBehaviour сохраняем путь, а не сам объект
                 if (typeof(MonoBehaviour).IsAssignableFrom(fieldType) || 
                     typeof(Component).IsAssignableFrom(fieldType))
                 {
-                    // Не копируем MonoBehaviour - они не сериализуются в JSON
                     field.SetValue(copy, null);
                 }
                 else if (typeof(GameObject).IsAssignableFrom(fieldType))
@@ -542,7 +491,6 @@ namespace WebUtility.Editor.Data
                 }
                 else if (fieldType.IsClass && fieldType.GetCustomAttribute<SerializableAttribute>() != null)
                 {
-                    // Рекурсивно копируем вложенные объекты
                     if (fieldValue != null)
                     {
                         object nestedCopy = CreateSerializableCopy(fieldValue, fieldType);
@@ -551,7 +499,6 @@ namespace WebUtility.Editor.Data
                 }
                 else if (fieldType.IsArray)
                 {
-                    // Для массивов создаём новый массив и копируем элементы
                     if (fieldValue != null)
                     {
                         Array sourceArray = fieldValue as Array;
@@ -570,7 +517,6 @@ namespace WebUtility.Editor.Data
                 }
                 else
                 {
-                    // Копируем значение (для примитивов, строк и т.д.)
                     field.SetValue(copy, fieldValue);
                 }
             }
@@ -583,19 +529,16 @@ namespace WebUtility.Editor.Data
         {
             var configs = new List<DataConfigWrapper>();
             
-            // Проверяем существование папки
             if (!Directory.Exists(ConfigsFolderPath))
             {
                 Debug.Log($"Configs folder does not exist: {ConfigsFolderPath}");
                 return configs;
             }
             
-            // Если индекс не существует, пробуем найти все JSON файлы в папке
             if (!File.Exists(ConfigsIndexPath))
             {
                 Debug.Log($"Index file does not exist: {ConfigsIndexPath}. Searching for config files...");
                 
-                // Ищем все JSON файлы в папке (кроме index.json)
                 try
                 {
                     string[] files = Directory.GetFiles(ConfigsFolderPath, "*.json");
@@ -619,7 +562,6 @@ namespace WebUtility.Editor.Data
                         }
                     }
                     
-                    // После загрузки всех конфигов, обновляем индекс
                     if (configs.Count > 0)
                     {
                         EditorApplication.delayCall += () => SaveConfigsIndex();
@@ -708,13 +650,11 @@ namespace WebUtility.Editor.Data
                 
                 string currentPath = string.IsNullOrEmpty(fieldPath) ? field.Name : $"{fieldPath}.{field.Name}";
                 
-                // Проверяем, является ли поле Unity объектом
                 if (fieldValue is UnityEngine.Object unityObj)
                 {
                     string assetPath = AssetDatabase.GetAssetPath(unityObj);
                     if (!string.IsNullOrEmpty(assetPath))
                     {
-                        // Пропускаем встроенные ресурсы Unity
                         if (assetPath.Contains("unity_builtin_extra") || assetPath.Contains("Library/unity default resources"))
                         {
                             Debug.LogWarning($"Cannot save reference to built-in Unity resource: {assetPath}. Use a regular asset instead.");
@@ -726,7 +666,6 @@ namespace WebUtility.Editor.Data
                         {
                             string address = GetAddressableAddress(assetPath);
                             
-                            // Если объект не в Addressables, добавляем его автоматически
                             if (string.IsNullOrEmpty(address))
                             {
                                 AddUnityObjectToAddressables(assetPath, guid);
@@ -744,7 +683,6 @@ namespace WebUtility.Editor.Data
                     }
                     else if (unityObj is MonoBehaviour mb)
                     {
-                        // Для MonoBehaviour в сцене сохраняем путь к префабу, если есть
                         string prefabPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(mb);
                         if (!string.IsNullOrEmpty(prefabPath))
                         {
@@ -753,7 +691,6 @@ namespace WebUtility.Editor.Data
                             {
                                 string address = GetAddressableAddress(prefabPath);
                                 
-                                // Если объект не в Addressables, добавляем его автоматически
                                 if (string.IsNullOrEmpty(address))
                                 {
                                     AddUnityObjectToAddressables(prefabPath, guid);
@@ -773,7 +710,6 @@ namespace WebUtility.Editor.Data
                 }
                 else if (fieldType.IsClass && fieldType.GetCustomAttribute<SerializableAttribute>() != null)
                 {
-                    // Рекурсивно обрабатываем вложенные объекты
                     CollectUnityObjectReferences(fieldValue, fieldType, currentPath, references);
                 }
                 else if (fieldType.IsArray)
@@ -792,7 +728,6 @@ namespace WebUtility.Editor.Data
                                     string assetPath = AssetDatabase.GetAssetPath(obj);
                                     if (!string.IsNullOrEmpty(assetPath))
                                     {
-                                        // Пропускаем встроенные ресурсы Unity
                                         if (assetPath.Contains("unity_builtin_extra") || assetPath.Contains("Library/unity default resources"))
                                         {
                                             continue;
@@ -803,7 +738,6 @@ namespace WebUtility.Editor.Data
                                         {
                                             string address = GetAddressableAddress(assetPath);
                                             
-                                            // Если объект не в Addressables, добавляем его автоматически
                                             if (string.IsNullOrEmpty(address))
                                             {
                                                 AddUnityObjectToAddressables(assetPath, guid);
@@ -847,7 +781,6 @@ namespace WebUtility.Editor.Data
             {
                 try
                 {
-                    // Загружаем объект по GUID
                     string assetPath = AssetDatabase.GUIDToAssetPath(refData.objectGuid);
                     if (string.IsNullOrEmpty(assetPath) && !string.IsNullOrEmpty(refData.assetPath))
                     {
@@ -862,7 +795,6 @@ namespace WebUtility.Editor.Data
                             UnityEngine.Object obj = AssetDatabase.LoadAssetAtPath(assetPath, objectType);
                             if (obj != null)
                             {
-                                // Устанавливаем значение поля
                                 SetFieldValueByPath(data, type, refData.fieldPath, obj);
                             }
                         }
@@ -907,12 +839,10 @@ namespace WebUtility.Editor.Data
                     return;
                 }
 
-                // Проверяем, не добавлен ли уже
                 var existingEntry = settings.FindAssetEntry(guid);
                 if (existingEntry != null)
                     return;
 
-                // Создаём группу для Unity объектов если её нет
                 const string UnityObjectsGroupName = "UnityObjects";
                 var group = settings.FindGroup(UnityObjectsGroupName);
                 if (group == null)
@@ -927,15 +857,12 @@ namespace WebUtility.Editor.Data
                 if (group == null)
                     return;
 
-                // Создаём entry
                 var entry = settings.CreateOrMoveEntry(guid, group, readOnly: false, postEvent: false);
                 if (entry != null)
                 {
-                    // Используем имя файла как адрес
                     string fileName = System.IO.Path.GetFileNameWithoutExtension(assetPath);
                     entry.address = fileName;
                     
-                    // Добавляем метку
                     entry.SetLabel("UnityObject", true, true);
                     
                     EditorUtility.SetDirty(settings);
@@ -961,7 +888,6 @@ namespace WebUtility.Editor.Data
             {
                 string part = parts[i];
                 
-                // Проверяем, является ли часть массивом
                 if (part.Contains("["))
                 {
                     int bracketIndex = part.IndexOf('[');
@@ -1006,7 +932,6 @@ namespace WebUtility.Editor.Data
                     return;
             }
             
-            // Устанавливаем финальное значение
             string finalPart = parts[parts.Length - 1];
             
             if (finalPart.Contains("["))
@@ -1038,13 +963,11 @@ namespace WebUtility.Editor.Data
 
         private void LoadConfigs()
         {
-            // Загружаем при открытии окна
             _needsRefresh = false;
         }
 
         private string SanitizeFileName(string fileName)
         {
-            // Убираем недопустимые символы для имени файла
             char[] invalidChars = Path.GetInvalidFileNameChars();
             string sanitized = fileName;
             foreach (char c in invalidChars)
@@ -1091,7 +1014,6 @@ namespace WebUtility.Editor.Data
                 const string AddressLabel = "Config";
                 const string AddressPrefix = "Configs/";
 
-                // Создаём группу если её нет
                 var group = settings.FindGroup(AddressableGroupName);
                 if (group == null)
                 {
@@ -1102,7 +1024,6 @@ namespace WebUtility.Editor.Data
                     }
                 }
 
-                // Создаём или обновляем entry
                 var entry = settings.FindAssetEntry(assetGuid);
                 if (entry == null)
                 {
@@ -1113,7 +1034,6 @@ namespace WebUtility.Editor.Data
                     settings.MoveEntry(entry, group);
                 }
 
-                // Используем имя конфига как адрес: Configs/TypeName_ConfigName
                 string address = $"{AddressPrefix}{typeName}_{configName}";
                 if (entry.address != address)
                 {
@@ -1122,7 +1042,6 @@ namespace WebUtility.Editor.Data
                     AssetDatabase.SaveAssets();
                 }
 
-                // Добавляем метку
                 entry.SetLabel(AddressLabel, true, true);
 
                 EditorUtility.SetDirty(settings);
@@ -1187,7 +1106,6 @@ namespace WebUtility.Editor.Data
                 Debug.Log($"Created configs folder: {ConfigsFolderPath}");
             }
             
-            // Получаем все конфиги из файлов (не из индекса, чтобы не было циклической зависимости)
             var configs = new List<DataConfigWrapper>();
             try
             {
@@ -1210,7 +1128,6 @@ namespace WebUtility.Editor.Data
                         }
                         catch
                         {
-                            // Игнорируем ошибки при чтении отдельных файлов
                         }
                     }
                 }
@@ -1252,16 +1169,12 @@ namespace WebUtility.Editor.Data
         }
     }
 
-    // Вспомогательный класс для хранения данных конфига в ScriptableObject
-    // Использует динамические поля через SerializedProperty
     public class ConfigDataHolder : ScriptableObject
     {
         [SerializeField] private string dataJson;
         [SerializeField] private string dataType;
         [SerializeField] private string dataAssemblyQualifiedName;
         
-        // Динамическое поле для хранения данных
-        // Unity будет сериализовать это поле автоматически
         [SerializeField] private UnityEngine.Object data;
         
         private object _cachedData;
@@ -1276,14 +1189,12 @@ namespace WebUtility.Editor.Data
             dataType = type.Name;
             dataAssemblyQualifiedName = type.AssemblyQualifiedName;
             
-            // Для MonoBehaviour и других Unity объектов сохраняем ссылку
             if (dataObj is UnityEngine.Object unityObj)
             {
                 data = unityObj;
             }
             else
             {
-                // Для обычных классов сериализуем в JSON
                 dataJson = JsonUtility.ToJson(dataObj);
             }
         }
@@ -1293,14 +1204,12 @@ namespace WebUtility.Editor.Data
             if (_cachedData != null)
                 return _cachedData;
             
-            // Если есть Unity объект, возвращаем его
             if (data != null)
             {
                 _cachedData = data;
                 return data;
             }
             
-            // Иначе десериализуем из JSON
             if (string.IsNullOrEmpty(dataAssemblyQualifiedName) || string.IsNullOrEmpty(dataJson))
                 return null;
             

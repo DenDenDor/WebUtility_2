@@ -8,10 +8,6 @@ using UnityEngine;
 
 namespace WebUtility.Editor.Data
 {
-    /// <summary>
-    /// Обеспечивает наличие addressable-записей для конфигов в папке Assets/WebUtility/Configs.
-    /// Генерирует адреса вида "Configs/<TypeName>_<ConfigName>" и добавляет метку "Config".
-    /// </summary>
     [InitializeOnLoad]
     public static class ConfigAddressableSetup
     {
@@ -64,7 +60,6 @@ namespace WebUtility.Editor.Data
                 if (string.IsNullOrEmpty(assetGuid))
                     continue;
 
-                // Читаем конфиг для получения типа и имени
                 try
                 {
                     string configJson = File.ReadAllText(file);
@@ -82,7 +77,6 @@ namespace WebUtility.Editor.Data
                         settings.MoveEntry(entry, group);
                     }
 
-                    // Используем имя конфига как адрес: Configs/TypeName_ConfigName
                     string address = $"{AddressPrefix}{wrapper.TypeName}_{wrapper.Name}";
                     if (entry.address != address)
                     {
@@ -94,7 +88,6 @@ namespace WebUtility.Editor.Data
                 }
                 catch
                 {
-                    // Игнорируем ошибки при чтении отдельных файлов
                 }
             }
 

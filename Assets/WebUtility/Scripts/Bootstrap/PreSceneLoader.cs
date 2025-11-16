@@ -20,6 +20,42 @@ namespace WebUtility
 
             _scenes = ScenesParser.ParseScenesList();
             SceneManager.sceneLoaded += OnSceneLoaded;
+            
+            #if UNITY_EDITOR
+            PreloadConfigUnityObjectsSync();
+            #else
+            PreloadConfigUnityObjects();
+            #endif
+        }
+        
+        private static void PreloadConfigUnityObjectsSync()
+        {
+            try
+            {
+                Debug.Log("[PreSceneLoader] Starting synchronous preload of Unity objects from configs...");
+                
+                WebUtility.DataConfigManager.PreloadUnityObject("Cube");
+                
+                Debug.Log("[PreSceneLoader] Synchronous preload completed");
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[PreSceneLoader] Exception during synchronous Unity objects preload: {e.Message}");
+            }
+        }
+        
+        private static void PreloadConfigUnityObjects()
+        {
+            try
+            {
+                Debug.Log("[PreSceneLoader] Starting async preload of Unity objects from configs...");
+                
+                WebUtility.DataConfigManager.PreloadUnityObject("Cube");
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[PreSceneLoader] Exception during async Unity objects preload: {e.Message}");
+            }
         }
 
         private static void OnSceneLoaded(Scene arg0, LoadSceneMode arg1)

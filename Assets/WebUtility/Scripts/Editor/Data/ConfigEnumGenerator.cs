@@ -8,16 +8,10 @@ using UnityEngine;
 
 namespace WebUtility.Editor.Data
 {
-    /// <summary>
-    /// Генерирует enum для каждого типа конфига на основе имён существующих конфигов
-    /// </summary>
     public static class ConfigEnumGenerator
     {
         private const string EnumsFolderPath = "Assets/WebUtility/Scripts/Data/ConfigEnums";
         
-        /// <summary>
-        /// Генерирует enum для указанного типа конфига
-        /// </summary>
         public static void GenerateEnumForType(Type configType)
         {
             if (configType == null || !typeof(AbstractData).IsAssignableFrom(configType))
@@ -26,7 +20,6 @@ namespace WebUtility.Editor.Data
                 return;
             }
             
-            // Получаем все конфиги этого типа
             var configs = GetAllConfigsOfType(configType);
             var configNames = configs.Select(c => c.Name).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
             
@@ -35,17 +28,12 @@ namespace WebUtility.Editor.Data
                 Debug.LogWarning($"No configs found for type {configType.Name}. Enum will be empty.");
             }
             
-            // Генерируем enum
             string enumName = configType.Name + "Type";
             string enumContent = GenerateEnumContent(enumName, configNames);
             
-            // Сохраняем enum
             SaveEnum(enumName, enumContent);
         }
         
-        /// <summary>
-        /// Генерирует enum для всех типов конфигов
-        /// </summary>
         public static void GenerateAllEnums()
         {
             var types = GetAllAbstractDataTypes();
@@ -58,9 +46,6 @@ namespace WebUtility.Editor.Data
             Debug.Log("All config enums generated successfully.");
         }
         
-        /// <summary>
-        /// Обновляет enum для указанного типа конфига
-        /// </summary>
         public static void UpdateEnumForType(Type configType, string configName, bool isRemoved = false)
         {
             GenerateEnumForType(configType);
@@ -105,17 +90,14 @@ namespace WebUtility.Editor.Data
             if (string.IsNullOrEmpty(name))
                 return "None";
             
-            // Убираем недопустимые символы для enum
             string sanitized = name;
             sanitized = System.Text.RegularExpressions.Regex.Replace(sanitized, @"[^a-zA-Z0-9_]", "");
             
-            // Если начинается с цифры, добавляем префикс
             if (char.IsDigit(sanitized[0]))
             {
                 sanitized = "Config_" + sanitized;
             }
             
-            // Если пусто, возвращаем None
             if (string.IsNullOrEmpty(sanitized))
                 return "None";
             
@@ -162,13 +144,11 @@ namespace WebUtility.Editor.Data
                     }
                     catch
                     {
-                        // Игнорируем ошибки
                     }
                 }
             }
             catch
             {
-                // Игнорируем ошибки
             }
             
             return configs;

@@ -15,6 +15,18 @@ MonoBehaviour:
   m_GroupName: Configs
   m_GUID: b70f3b1a587af364aa326c8d0e0cfcec
   m_SerializeEntries:
+  - m_GUID: 1af3b90d0c4e8be4b87757ea067eb5fd
+    m_Address: Configs/YandexSDKAdapter_Yandex
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - Config
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 45cfcd18ced343b4fa102a60455d5c3a
+    m_Address: Configs/PlayerPrefsSDKAdapter_PlayerPrefs
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - Config
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 6de5fd96ed0338d4485bf25aea447369
     m_Address: Configs/TestWeaponConfig_WeaponFire
     m_ReadOnly: 0
@@ -27,8 +39,14 @@ MonoBehaviour:
     m_SerializedLabels:
     - Config
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: ae4eda889bed94e41808ea31d744ac70
-    m_Address: Configs/WeaponData_FroozenSword
+  - m_GUID: b7a265eb6e022d8408aa396c93683c79
+    m_Address: Configs/WeaponData_FroozenSword7
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - Config
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cec8b09496b2bf344becba06f949e9f3
+    m_Address: Configs/WeaponData_Firearm
     m_ReadOnly: 0
     m_SerializedLabels:
     - Config

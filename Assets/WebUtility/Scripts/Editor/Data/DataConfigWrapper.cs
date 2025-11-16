@@ -9,14 +9,13 @@ namespace WebUtility.Editor.Data
         [SerializeField] private string typeName;
         [SerializeField] private string jsonData;
         [SerializeField] private string name;
-        [SerializeField] private string objectReferencesJson; // JSON с ссылками на Unity объекты
+        [SerializeField] private string objectReferencesJson;
 
         public string TypeName => typeName;
         public string JsonData => jsonData;
         public string Name => name;
         public string ObjectReferencesJson => objectReferencesJson;
 
-        // Пустой конструктор для JsonUtility
         public DataConfigWrapper()
         {
         }

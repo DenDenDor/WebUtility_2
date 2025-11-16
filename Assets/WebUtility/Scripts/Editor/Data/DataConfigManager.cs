@@ -5,32 +5,10 @@ using UnityEngine;
 
 namespace WebUtility.Editor.Data
 {
-    /// <summary>
-    /// Менеджер для работы с конфигами данных
-    /// Позволяет получать сохранённые конфиги по GUID
-    /// 
-    /// Пример использования:
-    /// <code>
-    /// // Получить конфиг по GUID
-    /// var weaponConfig = DataConfigManager.GetData&lt;WeaponData&gt;("390a5133-85d0-4158-8ef8-bd4b7bc9b3ee");
-    /// 
-    /// // Получить все конфиги определённого типа
-    /// var allWeapons = DataConfigManager.GetAllDataOfType&lt;WeaponData&gt;();
-    /// 
-    /// // Проверить существование конфига
-    /// bool exists = DataConfigManager.ConfigExists("390a5133-85d0-4158-8ef8-bd4b7bc9b3ee");
-    /// </code>
-    /// </summary>
     public static class DataConfigManager
     {
         private const string ConfigsFolderPath = "Assets/WebUtility/Configs";
         
-        /// <summary>
-        /// Получить данные конфига по GUID или имени (TypeName_ConfigName)
-        /// </summary>
-        /// <typeparam name="T">Тип данных конфига (должен наследоваться от AbstractData)</typeparam>
-        /// <param name="guid">GUID конфига или ключ в формате TypeName_ConfigName</param>
-        /// <returns>Экземпляр конфига или null, если не найден</returns>
         public static T GetData<T>(string guid) where T : AbstractData
         {
             if (string.IsNullOrEmpty(guid))
@@ -39,7 +17,6 @@ namespace WebUtility.Editor.Data
                 return null;
             }
             
-            // Поддерживаем обратную совместимость: имя файла может быть как GUID.json, так и TypeName_Name.json
             string configPath = Path.Combine(ConfigsFolderPath, $"{guid}.json");
             
             if (!File.Exists(configPath))
@@ -50,7 +27,6 @@ namespace WebUtility.Editor.Data
             
             try
             {
-                // Читаем файл конфига
                 string configJson = File.ReadAllText(configPath);
                 var wrapper = JsonUtility.FromJson<DataConfigWrapper>(configJson);
                 
@@ -60,13 +36,11 @@ namespace WebUtility.Editor.Data
                     return null;
                 }
                 
-                // Проверяем тип
                 if (wrapper.TypeName != typeof(T).Name)
                 {
                     Debug.LogWarning($"Config type mismatch. Expected {typeof(T).Name}, but got {wrapper.TypeName}");
                 }
                 
-                // Десериализуем данные
                 T data = JsonUtility.FromJson<T>(wrapper.JsonData);
                 
                 if (data == null)
@@ -75,7 +49,6 @@ namespace WebUtility.Editor.Data
                     return null;
                 }
                 
-                // Восстанавливаем ссылки на Unity объекты
                 if (!string.IsNullOrEmpty(wrapper.ObjectReferencesJson))
                 {
                     RestoreUnityObjectReferences(data, typeof(T), wrapper.ObjectReferencesJson);
@@ -90,12 +63,6 @@ namespace WebUtility.Editor.Data
             }
         }
         
-        /// <summary>
-        /// Получить данные конфига по GUID (без указания типа)
-        /// </summary>
-        /// <param name="guid">GUID конфига</param>
-        /// <param name="type">Тип данных конфига</param>
-        /// <returns>Экземпляр конфига или null, если не найден</returns>
         public static object GetData(string guid, Type type)
         {
             if (string.IsNullOrEmpty(guid))
@@ -116,16 +83,13 @@ namespace WebUtility.Editor.Data
                 return null;
             }
             
-            // Поддерживаем обратную совместимость: если guid выглядит как ключ (TypeName_Name), используем его напрямую
             string configPath;
             if (guid.Contains("_"))
             {
-                // Новый формат: TypeName_Name.json
                 configPath = Path.Combine(ConfigsFolderPath, $"{guid}.json");
             }
             else
             {
-                // Старый формат: GUID.json
                 configPath = Path.Combine(ConfigsFolderPath, $"{guid}.json");
             }
             
@@ -137,7 +101,6 @@ namespace WebUtility.Editor.Data
             
             try
             {
-                // Читаем файл конфига
                 string configJson = File.ReadAllText(configPath);
                 var wrapper = JsonUtility.FromJson<DataConfigWrapper>(configJson);
                 
@@ -147,7 +110,6 @@ namespace WebUtility.Editor.Data
                     return null;
                 }
                 
-                // Десериализуем данные
                 object data = JsonUtility.FromJson(wrapper.JsonData, type);
                 
                 if (data == null)
@@ -156,7 +118,6 @@ namespace WebUtility.Editor.Data
                     return null;
                 }
                 
-                // Восстанавливаем ссылки на Unity объекты
                 if (!string.IsNullOrEmpty(wrapper.ObjectReferencesJson))
                 {
                     RestoreUnityObjectReferences(data, type, wrapper.ObjectReferencesJson);
@@ -171,36 +132,20 @@ namespace WebUtility.Editor.Data
             }
         }
         
-        /// <summary>
-        /// Проверить существование конфига по GUID
-        /// </summary>
-        /// <param name="guid">GUID конфига</param>
-        /// <returns>True, если конфиг существует</returns>
         public static bool ConfigExists(string guid)
         {
             if (string.IsNullOrEmpty(guid))
                 return false;
             
-            // Поддерживаем обратную совместимость
             string configPath = Path.Combine(ConfigsFolderPath, $"{guid}.json");
             return File.Exists(configPath);
         }
         
-        /// <summary>
-        /// Получить все GUID конфигов указанного типа
-        /// </summary>
-        /// <typeparam name="T">Тип конфига</typeparam>
-        /// <returns>Массив GUID конфигов указанного типа</returns>
         public static string[] GetAllGuidsOfType<T>() where T : AbstractData
         {
             return GetAllGuidsOfType(typeof(T));
         }
         
-        /// <summary>
-        /// Получить все конфиги указанного типа
-        /// </summary>
-        /// <typeparam name="T">Тип конфига</typeparam>
-        /// <returns>Массив конфигов указанного типа</returns>
         public static T[] GetAllDataOfType<T>() where T : AbstractData
         {
             string[] guids = GetAllGuidsOfType<T>();
@@ -218,11 +163,6 @@ namespace WebUtility.Editor.Data
             return results.ToArray();
         }
         
-        /// <summary>
-        /// Получить все GUID конфигов указанного типа
-        /// </summary>
-        /// <param name="type">Тип конфига</param>
-        /// <returns>Массив GUID конфигов указанного типа</returns>
         public static string[] GetAllGuidsOfType(Type type)
         {
             if (type == null)
@@ -248,14 +188,12 @@ namespace WebUtility.Editor.Data
                         
                         if (wrapper != null && wrapper.TypeName == type.Name)
                         {
-                            // Используем имя конфига вместо GUID
                             string configKey = $"{wrapper.TypeName}_{wrapper.Name}";
                             guids.Add(configKey);
                         }
                     }
                     catch
                     {
-                        // Игнорируем ошибки при чтении отдельных файлов
                     }
                 }
             }
@@ -282,7 +220,6 @@ namespace WebUtility.Editor.Data
                 {
                     try
                     {
-                        // Загружаем объект по GUID
                         string assetPath = AssetDatabase.GUIDToAssetPath(refData.objectGuid);
                         if (string.IsNullOrEmpty(assetPath) && !string.IsNullOrEmpty(refData.assetPath))
                         {
@@ -297,7 +234,6 @@ namespace WebUtility.Editor.Data
                                 UnityEngine.Object obj = AssetDatabase.LoadAssetAtPath(assetPath, objectType);
                                 if (obj != null)
                                 {
-                                    // Устанавливаем значение поля
                                     SetFieldValueByPath(data, type, refData.fieldPath, obj);
                                 }
                             }
@@ -328,7 +264,6 @@ namespace WebUtility.Editor.Data
             {
                 string part = parts[i];
                 
-                // Проверяем, является ли часть массивом
                 if (part.Contains("["))
                 {
                     int bracketIndex = part.IndexOf('[');
@@ -373,7 +308,6 @@ namespace WebUtility.Editor.Data
                     return;
             }
             
-            // Устанавливаем финальное значение
             string finalPart = parts[parts.Length - 1];
             
             if (finalPart.Contains("["))

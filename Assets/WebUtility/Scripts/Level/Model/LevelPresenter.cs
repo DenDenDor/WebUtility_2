@@ -6,20 +6,22 @@ using WebUtility.Data;
 public class LevelPresenter : IPresenter
 {
     [Inject] private LevelWindow _levelWindow;
+    [Inject] private SDKMediator _sdkMediator;
 
     public void Init()
     {
         _levelWindow.Clicked += OnClicked;
-        GameObject go = DataConfigManager.GetData<WeaponData>(WeaponDataType.FireArmBow).Go;
         
-        Debug.LogError("GO " + go);
-
-        Object.Instantiate(go, Vector3.zero,  Quaternion.identity);
+        var weaponConfig = DataConfigManager.GetData<WeaponData>(WeaponDataType.FroozenSword7);
+        
+        Object.Instantiate(weaponConfig.Go, Vector3.zero, Quaternion.identity);
     }
 
     private void OnClicked()
     {
-        Debug.LogError("NEW SCENE... ");
+        Debug.LogError("NEW SCENE... " + _sdkMediator.GenerateSaveData().Coins);
+        
+        _sdkMediator.SaveCoins(Random.Range(0, 10));
         SceneManager.LoadScene("New Scene");
     }
 

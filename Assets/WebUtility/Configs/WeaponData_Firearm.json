@@ -1,6 +1,6 @@
 {
     "typeName": "WeaponData",
     "jsonData": "{\"Sprite\":{\"instanceID\":694},\"Go\":{\"instanceID\":0}}",
-    "name": "FroozenSword",
+    "name": "Firearm",
     "objectReferencesJson": "{\"references\":[{\"fieldPath\":\"Go\",\"objectGuid\":\"4bee83dea794700438c6568b35424788\",\"assetPath\":\"Assets/Cube.prefab\",\"objectType\":\"UnityEngine.GameObject, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null\",\"address\":\"Cube\"}]}"
 }

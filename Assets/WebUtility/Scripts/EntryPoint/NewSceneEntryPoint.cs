@@ -1,5 +1,3 @@
-// Auto-generated EntryPoint for scene
-// SceneGUID: 1960564c578067a4fa14ebf29fddfa98
 using UnityEngine;
 using System.Collections.Generic;
 using WebUtility;

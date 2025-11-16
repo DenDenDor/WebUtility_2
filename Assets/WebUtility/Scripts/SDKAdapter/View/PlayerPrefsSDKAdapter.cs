@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(fileName = " PlayerPrefs", menuName = "SDKAdapter/PlayerPrefs")]
+[Serializable]
 public class PlayerPrefsSDKAdapter : AbstractSDKAdapter
 {
     private readonly string _saveKey = "SaveKey";

@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Linq;
 using System.Collections.Generic;
+using WebUtility.Editor.Data;
 
 public class SDKGenerationEditor : EditorWindow
 {
@@ -26,7 +27,6 @@ public class SDKGenerationEditor : EditorWindow
 
     private void RefreshAvailableSDKs()
     {
-        // Получаем все значения из enum TypeSDK
         System.Type typeSDKEnum = typeof(TypeSDK);
         availableSDKs = System.Enum.GetNames(typeSDKEnum);
     }
@@ -51,7 +51,6 @@ public class SDKGenerationEditor : EditorWindow
         GUILayout.Space(10);
         EditorGUILayout.LabelField("SDK Generation", EditorStyles.boldLabel);
         
-        // Section 1: Create new SDK
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Create New SDK Adapter", EditorStyles.label);
         
@@ -72,7 +71,6 @@ public class SDKGenerationEditor : EditorWindow
             }
         }
         
-        // Section 2: Set default SDK
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Default SDK Configuration", EditorStyles.label);
         
@@ -101,20 +99,15 @@ public class SDKGenerationEditor : EditorWindow
 {
     try
     {
-        // Generate C# class
         string classContent = GenerateClassContent(sdkName);
         string classPath = Path.Combine(Application.dataPath, "WebUtility", "Scripts", "SDKAdapter", "View", $"{sdkName}SDKAdapter.cs");
         WriteFile(classPath, classContent);
         
-        // Update enum
         UpdateTypeSDKEnum(sdkName);
         
-        // Refresh asset database to compile new scripts
         AssetDatabase.Refresh();
         
-        // Wait for compilation to complete before creating ScriptableObject
-        // Use EditorApplication.update to wait for compilation to finish
-        WaitForCompilationAndCreateAsset(sdkName);
+        WaitForCompilationAndCreateConfig(sdkName);
         
         RefreshAvailableSDKs();
     }
@@ -124,10 +117,10 @@ public class SDKGenerationEditor : EditorWindow
     }
 }
 
-private void WaitForCompilationAndCreateAsset(string sdkName)
+private void WaitForCompilationAndCreateConfig(string sdkName)
 {
     int attempts = 0;
-    const int maxAttempts = 100; // Maximum 10 seconds (100 * 0.1s)
+    const int maxAttempts = 100;
     
     EditorApplication.CallbackFunction checkCompilation = null;
     checkCompilation = () =>
@@ -143,41 +136,38 @@ private void WaitForCompilationAndCreateAsset(string sdkName)
             else
             {
                 Debug.LogError($"Compilation timeout for {sdkName}SDKAdapter");
-                EditorUtility.DisplayDialog("Warning", $"SDK adapter '{sdkName}' was created but ScriptableObject creation timed out. Please create it manually.", "OK");
+                EditorUtility.DisplayDialog("Warning", $"SDK adapter '{sdkName}' was created but config creation timed out. Please create it manually.", "OK");
             }
             return;
         }
         
-        // Compilation finished, wait a bit more and then try to create asset
         EditorApplication.delayCall += () =>
         {
             EditorApplication.delayCall += () =>
             {
-                CreateScriptableObjectAssetWithRetry(sdkName, 20);
+                CreateConfigWithRetry(sdkName, 20);
             };
         };
     };
     
-    // Start checking after a small delay
     EditorApplication.delayCall += checkCompilation;
 }
 
-private void CreateScriptableObjectAssetWithRetry(string sdkName, int retriesLeft)
+private void CreateConfigWithRetry(string sdkName, int retriesLeft)
 {
     if (retriesLeft <= 0)
     {
-        Debug.LogError($"Failed to create ScriptableObject for {sdkName}SDKAdapter after multiple attempts");
-        EditorUtility.DisplayDialog("Warning", $"SDK adapter '{sdkName}' was created but ScriptableObject might need to be created manually", "OK");
+        Debug.LogError($"Failed to create config for {sdkName}SDKAdapter after multiple attempts");
+        EditorUtility.DisplayDialog("Warning", $"SDK adapter '{sdkName}' was created but config might need to be created manually", "OK");
         return;
     }
 
-    // Check if Unity is still compiling
     if (EditorApplication.isCompiling)
     {
         Debug.LogWarning($"Unity is still compiling, retrying... ({retriesLeft} attempts left)");
         EditorApplication.delayCall += () =>
         {
-            CreateScriptableObjectAssetWithRetry(sdkName, retriesLeft - 1);
+            CreateConfigWithRetry(sdkName, retriesLeft - 1);
         };
         return;
     }
@@ -185,7 +175,6 @@ private void CreateScriptableObjectAssetWithRetry(string sdkName, int retriesLef
     string className = $"{sdkName}SDKAdapter";
     System.Type adapterType = FindTypeInAllAssemblies(className);
     
-    // If not found, try to find via MonoScript
     if (adapterType == null)
     {
         Debug.Log($"Type {className} not found in assemblies, trying MonoScript...");
@@ -194,33 +183,29 @@ private void CreateScriptableObjectAssetWithRetry(string sdkName, int retriesLef
 
     if (adapterType != null)
     {
-        Debug.Log($"Found type: {adapterType.Name}, IsSubclassOf ScriptableObject: {adapterType.IsSubclassOf(typeof(ScriptableObject))}");
-        
-        if (adapterType.IsSubclassOf(typeof(ScriptableObject)))
+        if (typeof(AbstractData).IsAssignableFrom(adapterType))
         {
-            CreateScriptableObjectAsset(sdkName, adapterType);
+            CreateConfig(sdkName, adapterType);
             EditorUtility.DisplayDialog("Success", $"SDK adapter '{sdkName}' generated successfully!", "OK");
         }
         else
         {
-            Debug.LogError($"Type {className} found but is not a ScriptableObject subclass. Base type: {adapterType.BaseType?.Name}");
-            EditorUtility.DisplayDialog("Error", $"Type {className} is not a ScriptableObject subclass", "OK");
+            Debug.LogError($"Type {className} found but is not an AbstractData subclass. Base type: {adapterType.BaseType?.Name}");
+            EditorUtility.DisplayDialog("Error", $"Type {className} is not an AbstractData subclass", "OK");
         }
     }
     else
     {
-        // Retry after a short delay
         Debug.LogWarning($"Type {className} not found, retrying... ({retriesLeft} attempts left)");
         EditorApplication.delayCall += () =>
         {
-            CreateScriptableObjectAssetWithRetry(sdkName, retriesLeft - 1);
+            CreateConfigWithRetry(sdkName, retriesLeft - 1);
         };
     }
 }
 
 private System.Type FindTypeInAllAssemblies(string typeName)
 {
-    // First try the common assembly names
     System.Type type = System.Type.GetType(typeName + ", Assembly-CSharp");
     if (type != null) return type;
     
@@ -230,7 +215,6 @@ private System.Type FindTypeInAllAssemblies(string typeName)
     type = System.Type.GetType(typeName + ", Assembly-CSharp-firstpass");
     if (type != null) return type;
     
-    // Search through all loaded assemblies
     foreach (System.Reflection.Assembly assembly in System.AppDomain.CurrentDomain.GetAssemblies())
     {
         try
@@ -238,14 +222,12 @@ private System.Type FindTypeInAllAssemblies(string typeName)
             type = assembly.GetType(typeName);
             if (type != null) return type;
             
-            // Also try with namespace if typeName doesn't have one
             if (!typeName.Contains("."))
             {
                 type = assembly.GetType($"UnityEngine.{typeName}");
                 if (type != null) return type;
             }
             
-            // Deep search: get all types and find by name
             System.Type[] types = assembly.GetTypes();
             foreach (System.Type t in types)
             {
@@ -257,7 +239,6 @@ private System.Type FindTypeInAllAssemblies(string typeName)
         }
         catch
         {
-            // Skip assemblies that can't be queried
             continue;
         }
     }
@@ -275,7 +256,6 @@ private System.Type FindTypeViaMonoScript(string sdkName)
     if (script == null)
     {
         Debug.LogWarning($"MonoScript not found at path: {scriptPath}");
-        // Try alternative path format
         string altPath = scriptPath.Replace("Assets/", "").Replace("\\", "/");
         script = AssetDatabase.LoadAssetAtPath<MonoScript>(altPath);
     }
@@ -302,36 +282,102 @@ private System.Type FindTypeViaMonoScript(string sdkName)
 }
 
 
-private void CreateScriptableObjectAsset(string sdkName, System.Type adapterType)
+private void CreateConfig(string sdkName, System.Type adapterType)
 {
-    // Ensure directory exists
-    string resourcesPath = "Assets/Resources";
-    if (!AssetDatabase.IsValidFolder(resourcesPath))
-    {
-        AssetDatabase.CreateFolder("Assets", "Resources");
-    }
+    const string ConfigsFolderPath = "Assets/WebUtility/Configs";
     
-    string adaptersPath = "Assets/Resources/SDKAdapters";
-    if (!AssetDatabase.IsValidFolder(adaptersPath))
+    if (!Directory.Exists(ConfigsFolderPath))
     {
-        AssetDatabase.CreateFolder("Assets/Resources", "SDKAdapters");
+        Directory.CreateDirectory(ConfigsFolderPath);
     }
 
-    ScriptableObject so = ScriptableObject.CreateInstance(adapterType);
-    string assetPath = $"Assets/Resources/SDKAdapters/{sdkName}SDKAdapter.asset";
+    object instance = System.Activator.CreateInstance(adapterType);
+    string json = JsonUtility.ToJson(instance);
     
-    // Delete if already exists
-    if (AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath) != null)
+    var wrapper = new DataConfigWrapper(adapterType.Name, json, sdkName);
+    
+    string configFileName = $"{adapterType.Name}_{sdkName}.json";
+    string configPath = Path.Combine(ConfigsFolderPath, configFileName);
+    
+    if (File.Exists(configPath))
     {
-        AssetDatabase.DeleteAsset(assetPath);
-        AssetDatabase.Refresh();
+        File.Delete(configPath);
     }
     
-    AssetDatabase.CreateAsset(so, assetPath);
-    AssetDatabase.SaveAssets();
+    string jsonContent = JsonUtility.ToJson(wrapper, true);
+    File.WriteAllText(configPath, jsonContent);
+    
     AssetDatabase.Refresh();
     
-    Debug.Log($"Successfully created ScriptableObject: {assetPath}");
+    UpdateConfigsIndex();
+    ConfigEnumGenerator.UpdateEnumForType(adapterType, sdkName);
+    ConfigAddressableSetup.EnsureConfigsAddressable();
+    
+    Debug.Log($"Successfully created config: {configPath}");
+}
+
+private void UpdateConfigsIndex()
+{
+    const string ConfigsFolderPath = "Assets/WebUtility/Configs";
+    const string ConfigsIndexPath = "Assets/WebUtility/Configs/index.json";
+    
+    if (!Directory.Exists(ConfigsFolderPath))
+        return;
+    
+    var configs = new List<DataConfigWrapper>();
+    try
+    {
+        string[] files = Directory.GetFiles(ConfigsFolderPath, "*.json");
+        foreach (var file in files)
+        {
+            if (Path.GetFileName(file) == "index.json")
+                continue;
+            
+            try
+            {
+                string configJson = File.ReadAllText(file);
+                var config = JsonUtility.FromJson<DataConfigWrapper>(configJson);
+                if (config != null)
+                {
+                    configs.Add(config);
+                }
+            }
+            catch
+            {
+            }
+        }
+    }
+    catch (System.Exception e)
+    {
+        Debug.LogError($"Failed to scan config files: {e.Message}");
+    }
+    
+    var index = new ConfigsIndex
+    {
+        configs = configs.Select(c => $"{c.TypeName}_{c.Name}").Distinct().ToList()
+    };
+    
+    string json = JsonUtility.ToJson(index, true);
+    
+    try
+    {
+        File.WriteAllText(ConfigsIndexPath, json);
+    }
+    catch (System.Exception e)
+    {
+        Debug.LogError($"Failed to save index: {e.Message}");
+    }
+}
+
+[System.Serializable]
+private class ConfigsIndex
+{
+    public List<string> configs;
+
+    public ConfigsIndex()
+    {
+        configs = new List<string>();
+    }
 }
 
     private string GenerateClassContent(string sdkName)
@@ -343,15 +389,12 @@ private void CreateScriptableObjectAsset(string sdkName, System.Type adapterType
         sb.AppendLine("using System.Collections.Generic;");
         sb.AppendLine("using UnityEngine;");
         sb.AppendLine();
-        sb.AppendLine($"[CreateAssetMenu(fileName = \"{sdkName}SDKAdapter\", menuName = \"SDKAdapter/{sdkName}\")]");
         sb.AppendLine($"public class {sdkName}SDKAdapter : AbstractSDKAdapter");
         sb.AppendLine("{");
         
-        // Fields
         sb.AppendLine("    private readonly string _saveKey = \"SaveKey\";");
         sb.AppendLine();
         
-        // Properties
         sb.AppendLine("    public override bool IsPaymentAvailable => true;");
         sb.AppendLine("    public override bool IsMobile => Application.isMobilePlatform;");
         sb.AppendLine("    public override bool IsSpecialFlag => true;");
@@ -359,7 +402,6 @@ private void CreateScriptableObjectAsset(string sdkName, System.Type adapterType
         sb.AppendLine("    public override bool IsAuthorized => false;");
         sb.AppendLine();
         
-        // Methods
         sb.AppendLine("    public override void Save<T>(T data)");
         sb.AppendLine("    {");
         sb.AppendLine("        if (string.IsNullOrEmpty(_saveKey))");
@@ -396,7 +438,6 @@ private void CreateScriptableObjectAsset(string sdkName, System.Type adapterType
         sb.AppendLine("    }");
         sb.AppendLine();
         
-        // Other methods with basic implementation
         sb.AppendLine("    public override void SendMetrica(string metrica)");
         sb.AppendLine("    {");
         sb.AppendLine("        Debug.Log($\"[{nameof(" + sdkName + "SDKAdapter)}] Send metrica: {metrica}\");");
@@ -466,7 +507,6 @@ private void CreateScriptableObjectAsset(string sdkName, System.Type adapterType
         
         sb.AppendLine("    public override IEnumerator GetUserSprite(Action<Sprite> action)");
         sb.AppendLine("    {");
-        sb.AppendLine("        // Create a simple placeholder sprite");
         sb.AppendLine("        Texture2D texture = new Texture2D(64, 64);");
         sb.AppendLine("        Color[] colors = new Color[64 * 64];");
         sb.AppendLine("        for (int i = 0; i < colors.Length; i++)");
@@ -521,7 +561,6 @@ private void CreateScriptableObjectAsset(string sdkName, System.Type adapterType
         string configPath = Path.Combine(resourcesPath, "SDKConfig.txt");
         File.WriteAllText(configPath, defaultSDK, Encoding.UTF8);
         
-        // Refresh asset database to ensure the file is recognized
         AssetDatabase.Refresh();
         
         Debug.Log($"Default SDK saved: {defaultSDK}");
@@ -555,13 +594,10 @@ private void CreateScriptableObjectAsset(string sdkName, System.Type adapterType
                     foundEnum = true;
                 }
                 
-                // Look for the closing brace of the enum
                 if (foundEnum && !addedNewValue && line == "}")
                 {
-                    // Insert the new enum value before the closing brace
-                    newLines.RemoveAt(newLines.Count - 1); // Remove the closing brace
+                    newLines.RemoveAt(newLines.Count - 1);
                     
-                    // Get the last value to determine the next integer value
                     int lastValue = 0;
                     for (int j = newLines.Count - 1; j >= 0; j--)
                     {
@@ -576,7 +612,6 @@ private void CreateScriptableObjectAsset(string sdkName, System.Type adapterType
                         }
                     }
                     
-                    // Add the new enum value
                     newLines.Add($"    {newSDK} = {lastValue + 1},");
                     newLines.Add("}");
                     addedNewValue = true;

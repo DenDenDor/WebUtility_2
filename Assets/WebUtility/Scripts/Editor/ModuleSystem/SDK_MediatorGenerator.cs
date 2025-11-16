@@ -85,7 +85,6 @@ public static class SDK_MediatorGenerator
         if (type == typeof(char)) return "char";
         if (type == typeof(byte)) return "byte";
         
-        // Для других типов возвращаем полное имя
         return type.Name;
     }
 }
